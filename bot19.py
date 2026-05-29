@@ -813,8 +813,34 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     gid = update.effective_chat.id
+    uid = update.effective_user.id
+    chat_type = update.effective_chat.type
     lang = get_setting(gid, 'language') or 'chinese'
-    await update.message.reply_text(get_help_text(lang), parse_mode='Markdown')
+    
+    # 1. 获取你原有的记账机器人使用指南文本
+    guide_text = get_help_text(lang)
+    
+    # 2. 判断是否是客户“私聊”发送 /start
+    if chat_type == "private":
+        current_token = context.bot.token
+        license_info = get_bot_license(current_token)
+        
+        # 追加一段私聊老板的提示，引导他看下方的按钮
+        private_suffix = (
+            "\n\n━━━━━━━━━━━━━━━━━━━━\n"
+            "👑 **【老板私聊控制面板】**\n"
+            "检测到您正在私聊管理机器人，请使用下方按钮进行**充值续费**、**开通试用**或查看状态。"
+        )
+        
+        # 发送指南的同时，把你在代码中写好的 8 键精美菜单（get_expired_keyboard）挂上去
+        await update.message.reply_text(
+            text=guide_text + private_suffix, 
+            parse_mode='Markdown', 
+            reply_markup=get_expired_keyboard()  # 🌟 这里直接调用你原本就有的内联按钮函数
+        )
+    else:
+        # 如果是在群聊里发 /start，就只显示普通的纯文字指南，不干扰群友
+        await update.message.reply_text(guide_text, parse_mode='Markdown')
 
 def run_web():
     flask_app.run(host='0.0.0.0', port=PORT)
